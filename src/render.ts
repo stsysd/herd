@@ -237,16 +237,34 @@ const drawDog = (ctx: CanvasRenderingContext2D, dog: Dog, time: number): void =>
 
 const drawDebug = (ctx: CanvasRenderingContext2D, world: World): void => {
   const { dog, params } = world;
-  ctx.setLineDash([6, 6]);
+  // 半径が近くても名前が重ならないよう、名前を置く角度を円ごとにずらす
+  const rings: { r: number; color: string; dash: number[]; label: string; angle: number }[] = [
+    { r: params.flightRadius, color: "rgba(244,67,54,0.9)", dash: [6, 6], label: "逃走", angle: -90 },
+    { r: params.alertRadius, color: "rgba(255,193,7,0.9)", dash: [6, 6], label: "警戒", angle: -65 },
+    { r: params.barkRadius, color: "rgba(79,195,247,0.95)", dash: [2, 4], label: "吠え声", angle: -115 },
+  ];
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = "rgba(244,67,54,0.8)";
-  ctx.beginPath();
-  ctx.arc(dog.pos.x, dog.pos.y, params.flightRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(255,193,7,0.8)";
-  ctx.beginPath();
-  ctx.arc(dog.pos.x, dog.pos.y, params.alertRadius, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.font = "bold 11px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  for (const ring of rings) {
+    ctx.setLineDash(ring.dash);
+    ctx.strokeStyle = ring.color;
+    ctx.beginPath();
+    ctx.arc(dog.pos.x, dog.pos.y, ring.r, 0, Math.PI * 2);
+    ctx.stroke();
+    const t = (ring.angle * Math.PI) / 180;
+    const x = dog.pos.x + Math.cos(t) * ring.r;
+    const y = dog.pos.y + Math.sin(t) * ring.r;
+    ctx.setLineDash([]);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    ctx.strokeText(ring.label, x, y);
+    ctx.fillStyle = ring.color;
+    ctx.fillText(ring.label, x, y);
+    ctx.lineWidth = 1.5;
+  }
   ctx.setLineDash([]);
   ctx.strokeStyle = "rgba(255,255,255,0.6)";
   ctx.beginPath();
