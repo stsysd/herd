@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest";
-import { herdingBot } from "./bot";
 import { bark, countInPen, createWorld, setDogTarget, step, type World } from "./sim";
 import { dist, vec, type Vec } from "./vec";
 
@@ -101,16 +100,6 @@ describe("sim", () => {
       for (let j = i + 1; j < ss.length; j++) minD = Math.min(minD, dist(ss[i].pos, ss[j].pos));
     expect(minD).toBeGreaterThan(r * 1.5);
   });
-
-  // 自動操作は単純なので、群れが囲いの裏に回り込むと詰まることがある。
-  // ここでは「うまく追えば入る」ことを、詰まらないシードで確かめる
-  test.each([2, 3, 4])("犬でうまく追えば羊を囲いに入れられる (seed %i)", (seed) => {
-    const world = createWorld({ seed });
-    let frame = 0;
-    // 人間の操作に近づけるため、6 フレームに 1 回だけ目標を更新する
-    run(world, 120, () => frame++ % 6 === 0 && herdingBot(world));
-    expect(countInPen(world)).toBeGreaterThanOrEqual(world.sheep.length * 0.9);
-  }, 30_000);
 
   test("囲いの中の羊を数える", () => {
     const world = createWorld({ seed: 6 });

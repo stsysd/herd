@@ -1,24 +1,29 @@
 import { herdingBot } from "./bot";
 import { fitView, render, screenToWorld, type View } from "./render";
 import { bark, countInPen, createWorld, defaultParams, setDogTarget, step, type Params, type World } from "./sim";
+import { createTuningPanel, loadSavedParams } from "./tuning";
 import { add, norm, scale, vec } from "./vec";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
 const ctx = canvas.getContext("2d")!;
 const hudCount = document.querySelector<HTMLElement>("#count")!;
 const barkButton = document.querySelector<HTMLButtonElement>("#bark")!;
-const panel = document.querySelector<HTMLElement>("#panel")!;
+const panelRoot = document.querySelector<HTMLElement>("#panel")!;
+const tuneButton = document.querySelector<HTMLButtonElement>("#tune")!;
 
 let seed = 1;
-const params: Params = { ...defaultParams };
+// 調整パネルで書き換える値。ワールドを作り直しても同じオブジェクトを共有する
+const params: Params = { ...defaultParams, ...loadSavedParams() };
 let world: World = createWorld({ seed, params });
 let view: View = fitView(world, innerWidth, innerHeight);
 let debug = false;
 let auto = false;
+let paused = false;
 
 const reset = () => {
   seed += 1;
   world = createWorld({ seed, params });
+  world.params = params;
   if (import.meta.env.DEV) Object.assign(window, { __herd: world });
 };
 reset();
@@ -56,7 +61,8 @@ addEventListener("keydown", (e) => {
   if (e.code === "KeyR") reset();
   if (e.code === "KeyV") debug = !debug;
   if (e.code === "KeyO") auto = !auto;
-  if (e.code === "KeyP") panel.hidden = !panel.hidden;
+  if (e.code === "KeyP") panel.toggle();
+  panel.refresh();
   if (e.code === "Space" || e.code.startsWith("Arrow")) e.preventDefault();
 });
 addEventListener("keyup", (e) => keys.delete(e.code));
@@ -72,35 +78,15 @@ const keyboardDirection = () => {
 
 // --- パラメータ調整パネル -----------------------------------------------------
 
-const SLIDERS: { key: keyof Params; label: string; min: number; max: number; step: number }[] = [
-  { key: "sheepCount", label: "羊の数 (R で反映)", min: 5, max: 120, step: 1 },
-  { key: "flightRadius", label: "逃走距離", min: 40, max: 250, step: 5 },
-  { key: "alertRadius", label: "警戒距離", min: 80, max: 400, step: 5 },
-  { key: "contagion", label: "恐怖の伝染", min: 0, max: 1, step: 0.01 },
-  { key: "fearDecay", label: "落ち着く速さ", min: 0.02, max: 1, step: 0.01 },
-  { key: "cohesion", label: "群れる強さ", min: 0, max: 3, step: 0.05 },
-  { key: "alignment", label: "向きを揃える強さ", min: 0, max: 3, step: 0.05 },
-  { key: "runSpeed", label: "羊の走る速さ", min: 30, max: 200, step: 5 },
-  { key: "dogSpeed", label: "犬の速さ", min: 60, max: 400, step: 10 },
-];
-
-for (const s of SLIDERS) {
-  const row = document.createElement("label");
-  const name = document.createElement("span");
-  const value = document.createElement("output");
-  const input = document.createElement("input");
-  Object.assign(input, { type: "range", min: s.min, max: s.max, step: s.step, value: params[s.key] });
-  name.textContent = s.label;
-  value.textContent = String(params[s.key]);
-  input.addEventListener("input", () => {
-    params[s.key] = Number(input.value);
-    value.textContent = input.value;
-    // 羊の数以外はその場で反映する
-    if (s.key !== "sheepCount") world.params[s.key] = params[s.key];
-  });
-  row.append(name, input, value);
-  panel.append(row);
-}
+const panel = createTuningPanel(panelRoot, tuneButton, {
+  params,
+  onRespawn: reset,
+  isPaused: () => paused,
+  setPaused: (p) => (paused = p),
+  isDebug: () => debug,
+  setDebug: (d) => (debug = d),
+});
+if (new URLSearchParams(location.search).has("tune")) panel.toggle();
 
 // --- ループ ---------------------------------------------------------------
 
@@ -127,7 +113,7 @@ const frame = (now: number) => {
   }
 
   while (acc >= DT) {
-    step(world, DT);
+    if (!paused) step(world, DT);
     acc -= DT;
   }
   render(ctx, world, view, { debug });

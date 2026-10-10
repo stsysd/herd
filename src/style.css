@@ -52,30 +52,191 @@ canvas {
   background: rgba(0, 0, 0, 0.65);
 }
 
-#panel {
+#tune {
   position: fixed;
   top: 12px;
   right: 16px;
-  display: grid;
-  grid-template-columns: auto 140px 3em;
-  gap: 4px 8px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.55);
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#tune[hidden] {
+  display: none;
+}
+
+#panel {
+  --panel-bg: rgba(20, 24, 18, 0.88);
+  --accent: #ffd54f;
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  width: 360px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel-bg);
   font-size: 12px;
+  backdrop-filter: blur(4px);
 }
 
 #panel[hidden] {
   display: none;
 }
 
-#panel label {
+#panel button {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#panel button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+#panel button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tune-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+#panel .tune-close {
+  border: none;
+  background: none;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.tune-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.tune-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+#panel details {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 0;
+}
+
+#panel summary {
+  padding: 4px 0;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.tune-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 56px 22px;
+  gap: 2px 6px;
+  align-items: center;
+}
+
+.tune-row {
   display: contents;
 }
 
-#panel output {
-  text-align: right;
+.tune-name {
+  overflow: hidden;
+  line-height: 1.25;
+}
+
+.tune-name small {
+  display: block;
+  opacity: 0.55;
+  font-size: 10px;
+}
+
+.tune-row input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #9ccc65;
+}
+
+.tune-row input[type="number"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+  font: inherit;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+#panel .tune-reset {
+  visibility: hidden;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 14px;
+}
+
+.tune-row.changed .tune-name {
+  color: var(--accent);
+}
+
+.tune-row.changed input[type="range"] {
+  accent-color: var(--accent);
+}
+
+#panel .tune-row.changed .tune-reset {
+  visibility: visible;
+}
+
+.tune-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 4px;
+}
+
+.tune-status {
+  opacity: 0.75;
+}
+
+.tune-export {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font: 11px ui-monospace, monospace;
+}
+
+.tune-export[hidden] {
+  display: none;
+}
+
+.tune-note {
+  margin: 4px 0 0;
+  opacity: 0.55;
+  font-size: 11px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -90,9 +251,16 @@ canvas {
   }
 
   #panel {
-    top: 48px;
-    left: 16px;
-    right: 16px;
-    grid-template-columns: auto 1fr 3em;
+    top: auto;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    width: auto;
+    max-height: 55vh;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .tune-grid {
+    grid-template-columns: minmax(0, 1fr) 30vw 56px 22px;
   }
 }

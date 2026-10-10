@@ -88,6 +88,34 @@ export interface Params {
   /** 逃げるときに仲間と向きを揃える強さ */
   alignment: number;
   barkRadius: number;
+  /** 近すぎる仲間から離れる強さ(落ち着いているとき, px/s) */
+  separation: number;
+  /** 近すぎる仲間から離れる強さ(怖いとき, px/s) */
+  separationFear: number;
+  /** 歩くときに近くの仲間の中心へ寄る強さ */
+  walkCohesion: number;
+  /** 歩くときに近くの仲間と向きを揃える強さ */
+  walkAlignment: number;
+  /** 歩くときに見える範囲の仲間へ引かれる強さ(分かれた群れの合流) */
+  farAttraction: number;
+  /** 草を食む時間の平均(s) */
+  grazeTime: number;
+  /** 一度に歩く時間の平均(s) */
+  walkTime: number;
+  /** 警戒中に離れていく速さの上限(歩く速さの倍率) */
+  alertSpeed: number;
+  /** 逃げるときに犬から離れる強さ */
+  fleeStrength: number;
+  /** 犬が迫る速さで逃走距離が広がる割合 */
+  flightSpeedBonus: number;
+  /** 加速の上限(落ち着いているとき, px/s²) */
+  accel: number;
+  /** 加速の上限(怖いとき, px/s²) */
+  accelFear: number;
+  /** 旋回の上限(落ち着いているとき, rad/s) */
+  turnRate: number;
+  /** 旋回の上限(怖いとき, rad/s) */
+  turnRateFear: number;
 }
 
 export const defaultParams: Params = {
@@ -108,6 +136,20 @@ export const defaultParams: Params = {
   cohesion: 0.9,
   alignment: 0.8,
   barkRadius: 230,
+  separation: 30,
+  separationFear: 80,
+  walkCohesion: 0.7,
+  walkAlignment: 0.3,
+  farAttraction: 0.4,
+  grazeTime: 4.5,
+  walkTime: 1.65,
+  alertSpeed: 2,
+  fleeStrength: 1.6,
+  flightSpeedBonus: 0.7,
+  accel: 40,
+  accelFear: 400,
+  turnRate: 1.5,
+  turnRateFear: 7.5,
 };
 
 export interface World {
@@ -220,7 +262,7 @@ export const effectiveFlightRadius = (world: World, s: Sheep): number => {
   const { dog, params } = world;
   const toSheep = norm(sub(s.pos, dog.pos));
   const closing = clamp(dot(dog.vel, toSheep) / params.dogSpeed, 0, 1);
-  return params.flightRadius * (1 + 0.7 * closing);
+  return params.flightRadius * (1 + params.flightSpeedBonus * closing);
 };
 
 const updateDog = (world: World, dt: number): void => {
@@ -263,7 +305,7 @@ const updateFear = (world: World, s: Sheep, neighbors: Sheep[], dt: number): voi
 };
 
 const updateState = (world: World, s: Sheep, neighbors: Sheep[], dt: number): void => {
-  const { rng } = world;
+  const { rng, params } = world;
   if (s.state === "flee" ? s.fear > FLEE_EXIT : s.fear > FLEE_ENTER) {
     s.state = "flee";
     return;
@@ -288,14 +330,17 @@ const updateState = (world: World, s: Sheep, neighbors: Sheep[], dt: number): vo
     const follow = neighbors.length > 0 ? walking / neighbors.length : 0;
     if (s.stateTimer <= 0 || isolated || rng() < follow * 1.5 * dt) {
       s.state = "walk";
-      s.stateTimer = range(rng, 0.8, 2.5);
+      s.stateTimer = vary(rng, params.walkTime);
       s.wander = s.heading + range(rng, -0.8, 0.8);
     }
   } else if (s.stateTimer <= 0 && !isolated) {
     s.state = "graze";
-    s.stateTimer = range(rng, 2, 7);
+    s.stateTimer = vary(rng, params.grazeTime);
   }
 };
+
+/** 平均 mean の前後 ±55% でばらつかせる */
+const vary = (rng: Rng, mean: number): number => mean * range(rng, 0.45, 1.55);
 
 const wallAvoidance = (world: World, p: Vec, margin: number): Vec => {
   let f = vec(0, 0);
@@ -325,7 +370,7 @@ const desiredVelocity = (world: World, s: Sheep, neighbors: Sheep[]): Vec => {
       sep = add(sep, scale(sub(s.pos, n.pos), (1 - d / params.separationRadius) / d));
     }
   }
-  sep = scale(sep, 30 + 50 * s.fear);
+  sep = scale(sep, params.separation + (params.separationFear - params.separation) * s.fear);
 
   const walls = wallAvoidance(world, s.pos, 50);
 
@@ -355,7 +400,7 @@ const desiredVelocity = (world: World, s: Sheep, neighbors: Sheep[]): Vec => {
       // 落ち着かない羊は犬を気にしながら、犬から離れる向きにじわじわ歩く。
       // 恐怖は伝染するので、犬から遠い羊も一緒に動き、群れ全体が押される
       const k = clamp((s.fear - ALERT_ENTER) / (FLEE_ENTER - ALERT_ENTER), 0, 1);
-      speed = params.walkSpeed * (0.4 + 1.6 * k);
+      speed = params.walkSpeed * (0.4 + (params.alertSpeed - 0.4) * k);
       dir = add(dir, norm(sub(s.pos, dog.pos)));
       if (hasNeighbors) {
         dir = add(dir, scale(toCenterDir, 0.5));
@@ -368,10 +413,10 @@ const desiredVelocity = (world: World, s: Sheep, neighbors: Sheep[]): Vec => {
       s.wander += range(rng, -0.15, 0.15);
       dir = add(dir, scale(fromAngle(s.wander), 0.6));
       if (hasNeighbors) {
-        dir = add(dir, scale(toCenterDir, 0.7));
-        dir = add(dir, scale(norm(avgVel), 0.3));
+        dir = add(dir, scale(toCenterDir, params.walkCohesion));
+        dir = add(dir, scale(norm(avgVel), params.walkAlignment));
         // 見える範囲の仲間にもゆるく引かれ、分かれた群れはやがて合流する
-        dir = add(dir, scale(norm(sub(visibleCenter(world, s), s.pos)), 0.4));
+        dir = add(dir, scale(norm(sub(visibleCenter(world, s), s.pos)), params.farAttraction));
       } else {
         // はぐれた羊は一番近い仲間の方へ急ぐ
         const nearest = nearestSheep(world, s);
@@ -388,7 +433,7 @@ const desiredVelocity = (world: World, s: Sheep, neighbors: Sheep[]): Vec => {
       const away = sub(s.pos, dog.pos);
       const d = len(away);
       const threat = clamp(1 - d / (params.alertRadius * 1.2), 0, 1);
-      dir = add(dir, scale(norm(away), 1.6 * threat));
+      dir = add(dir, scale(norm(away), params.fleeStrength * threat));
       if (hasNeighbors) {
         // 自分勝手な群れ(selfish herd): 怖いほど群れの中心へ潜り込む
         dir = add(dir, scale(toCenterDir, params.cohesion * (0.4 + f)));
@@ -443,7 +488,7 @@ const updateSheep = (world: World, dt: number): void => {
 
   world.sheep.forEach((s, i) => {
     // 慣性: 怖いほど機敏に加速・旋回できる
-    const accel = 40 + 360 * s.fear;
+    const accel = params.accel + (params.accelFear - params.accel) * s.fear;
     const steer = limit(sub(desired[i], s.vel), accel * dt);
     s.vel = limit(add(s.vel, steer), params.runSpeed);
     // 止まっているときは摩擦で減速する
@@ -457,7 +502,7 @@ const updateSheep = (world: World, dt: number): void => {
       // 立ち止まって犬の方を見る
       targetHeading = Math.atan2(dog.pos.y - s.pos.y, dog.pos.x - s.pos.x);
     }
-    const turnRate = 1.5 + 6 * s.fear;
+    const turnRate = params.turnRate + (params.turnRateFear - params.turnRate) * s.fear;
     const dh = angleDiff(targetHeading, s.heading);
     s.heading += clamp(dh, -turnRate * dt, turnRate * dt);
 
