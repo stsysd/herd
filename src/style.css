@@ -1,2 +1,98 @@
-html, body { margin: 0; height: 100%; background: #6a9a4a; overflow: hidden; }
-canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #4d7a35;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+}
+
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 16px;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+#hud .count {
+  font-size: 20px;
+}
+
+#hud .help {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1.6;
+}
+
+#bark {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#bark:active {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+#panel {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  display: grid;
+  grid-template-columns: auto 140px 3em;
+  gap: 4px 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+}
+
+#panel[hidden] {
+  display: none;
+}
+
+#panel label {
+  display: contents;
+}
+
+#panel output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #bark {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  #hud .help {
+    display: none;
+  }
+
+  #panel {
+    top: 48px;
+    left: 16px;
+    right: 16px;
+    grid-template-columns: auto 1fr 3em;
+  }
+}
